@@ -9,18 +9,21 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import aiofiles
+import uvicorn
 
 app = FastAPI()
 
 # --- Config & Setup ---
 DB_NAME = "kralgram.db"
 UPLOAD_DIR = "static/uploads"
+
+# Ensure directories exist BEFORE mounting
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Mount static files for uploads
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# --- HTML Content (Embedded for Single File Usage) ---
+# --- HTML Content ---
 html_content = """
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -366,7 +369,8 @@ html_content = """
 
         function connectWS() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws/${user.id}`);
+            const host = window.location.host;
+            ws = new WebSocket(`${protocol}//${host}/ws/${user.id}`);
             
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
@@ -830,3 +834,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 
     except WebSocketDisconnect:
         manager.disconnect(client_id)
+
+# --- START SERVER (Fix for Render) ---
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
